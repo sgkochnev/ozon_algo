@@ -5,27 +5,31 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"os"
 )
 
-//go:embed tests_H/00
-var input []byte
+// //go:embed tests_H/24
+// var input []byte
 
-//go:embed tests_H/01.a
-var output []byte
+// //go:embed tests_H/24.a
+// var output []byte
+
+type position struct {
+	row int
+	col int
+}
 
 func main() {
-	in := bufio.NewReader(bytes.NewBuffer(input))
+	// in := bufio.NewReader(bytes.NewBuffer(input))
+	in := bufio.NewReader(os.Stdin)
 
 	var t int
 	fmt.Fscanln(in, &t)
 
 	for i := 0; i < t; i++ {
-		// sourceMap := make(map[byte][]position)
+		sourceMap := make(map[byte]map[position]struct{})
 		var n, m int
 		fmt.Fscanln(in, &n, &m)
-
-		var groups []map[byte]map[position]struct{}
-		groups[0] = make(map[byte]map[position]struct{})
 
 		for k := 0; k < n; k++ {
 			str, _, err := in.ReadLine()
@@ -36,27 +40,69 @@ func main() {
 			s := bytes.Split(str, []byte("."))
 
 			for j, v := range s {
-				// sourceMap[v[0]] = append(sourceMap[v[0]], position{k, j})
-				
+				if _, ok := sourceMap[v[0]]; !ok {
+					sourceMap[v[0]] = make(map[position]struct{})
+				}
+				sourceMap[v[0]][position{k, j}] = struct{}{}
 			}
 		}
 
-		// qwe := make(map[int][]int)
-		// for _, v := range sourceMap[66] {
-		// 	qwe[v.r] = append(qwe[v.r], v.c)
-		// }
-		// fmt.Println(qwe)
+		res := true
+		for _, positions := range sourceMap {
+			for pos := range positions {
+				count := 0
+				ref := len(positions)
+				res = res && chain(positions, pos, &count, ref)
+				break
+			}
+		}
 
-		// fmt.Println(sourceMap)
+		if res {
+			fmt.Println("YES")
+		} else {
+			fmt.Println("NO")
+		}
 	}
+
 }
 
-type field struct {
-	color byte
-	position
+func chain(poss map[position]struct{}, pos position, count *int, ref int) bool {
+	if ref == *count {
+		return true
+	}
+
+	if len(poss) == 1 {
+		*count++
+		delete(poss, pos)
+		return true
+	}
+
+	listCoords := allNeighbors(pos)
+	res := false
+	for _, v := range listCoords {
+		delete(poss, pos)
+		if _, ok := poss[v]; ok {
+			res = res || chain(poss, v, count, ref)
+			*count++
+		}
+	}
+
+	return res
 }
 
-type position struct {
-	row int
-	col int
+func allNeighbors(pos position) []position {
+	l := position{row: pos.row, col: pos.col - 1}
+	r := position{row: pos.row, col: pos.col + 1}
+	u1 := position{row: pos.row - 1, col: pos.col}
+	d1 := position{row: pos.row + 1, col: pos.col}
+	var u2, d2 position
+	if pos.row%2 == 0 {
+		u2 = position{row: pos.row - 1, col: pos.col - 1}
+		d2 = position{row: pos.row + 1, col: pos.col - 1}
+	} else {
+		u2 = position{row: pos.row - 1, col: pos.col + 1}
+		d2 = position{row: pos.row + 1, col: pos.col + 1}
+	}
+
+	return []position{u2, u1, l, r, d2, d1}
 }
